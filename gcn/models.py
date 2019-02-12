@@ -139,18 +139,20 @@ class GCN(Model):
         self.output_dim = placeholders['labels'].get_shape().as_list()[1]
         self.placeholders = placeholders
 
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
+        with tf.device("/device:XLA_CPU:*"):
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
 
         self.build()
 
     def _loss(self):
         # Weight decay loss
-        for var in self.layers[0].vars.values():
-            self.loss += FLAGS.weight_decay * tf.nn.l2_loss(var)
+        with tf.device("/device:XLA_CPU:*"):
+            for var in self.layers[0].vars.values():
+                self.loss += FLAGS.weight_decay * tf.nn.l2_loss(var)
 
-        # Cross entropy error
-        self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
-                                                  self.placeholders['labels_mask'])
+            # Cross entropy error
+            self.loss += masked_softmax_cross_entropy(self.outputs, self.placeholders['labels'],
+                                                      self.placeholders['labels_mask'])
 
     def _accuracy(self):
         self.accuracy = masked_accuracy(self.outputs, self.placeholders['labels'],

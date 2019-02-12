@@ -24,6 +24,7 @@ flags.DEFINE_float('dropout', 0.5, 'Dropout rate (1 - keep probability).')
 flags.DEFINE_float('weight_decay', 5e-4, 'Weight for L2 loss on embedding matrix.')
 flags.DEFINE_integer('early_stopping', 10, 'Tolerance for early stopping (# of epochs).')
 flags.DEFINE_integer('max_degree', 3, 'Maximum Chebyshev polynomial degree.')
+flags.DEFINE_bool('verbose', False, 'Verbose mode.')
 
 # Load data
 adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask = load_data(FLAGS.dataset)
@@ -76,6 +77,7 @@ sess.run(tf.global_variables_initializer())
 cost_val = []
 
 # Train model
+train_t = 0
 for epoch in range(FLAGS.epochs):
 
     t = time.time()
@@ -90,16 +92,19 @@ for epoch in range(FLAGS.epochs):
     cost, acc, duration = evaluate(features, support, y_val, val_mask, placeholders)
     cost_val.append(cost)
 
+    end = time.time()
     # Print results
-    print("Epoch:", '%04d' % (epoch + 1), "train_loss=", "{:.5f}".format(outs[1]),
-          "train_acc=", "{:.5f}".format(outs[2]), "val_loss=", "{:.5f}".format(cost),
-          "val_acc=", "{:.5f}".format(acc), "time=", "{:.5f}".format(time.time() - t))
+    if FLAGS.verbose:
+        print("Epoch:", '%04d' % (epoch + 1), "train_loss=", "{:.5f}".format(outs[1]),
+              "train_acc=", "{:.5f}".format(outs[2]), "val_loss=", "{:.5f}".format(cost),
+              "val_acc=", "{:.5f}".format(acc), "time=", "{:.5f}".format(end - t))
+    train_t += (end - t)
 
     if epoch > FLAGS.early_stopping and cost_val[-1] > np.mean(cost_val[-(FLAGS.early_stopping+1):-1]):
         print("Early stopping...")
         break
 
-print("Optimization Finished!")
+print("Optimization Finished! Total training time=", "{:.5f}".format(train_t))
 
 # Testing
 test_cost, test_acc, test_duration = evaluate(features, support, y_test, test_mask, placeholders)

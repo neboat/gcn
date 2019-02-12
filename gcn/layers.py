@@ -21,8 +21,9 @@ def get_layer_uid(layer_name=''):
 def sparse_dropout(x, keep_prob, noise_shape):
     """Dropout for sparse tensors."""
     random_tensor = keep_prob
-    random_tensor += tf.random_uniform(noise_shape)
-    dropout_mask = tf.cast(tf.floor(random_tensor), dtype=tf.bool)
+    with tf.device("/device:XLA_CPU:*"):
+        random_tensor += tf.random_uniform(noise_shape)
+        dropout_mask = tf.cast(tf.floor(random_tensor), dtype=tf.bool)
     pre_out = tf.sparse_retain(x, dropout_mask)
     return pre_out * (1./keep_prob)
 
@@ -32,7 +33,8 @@ def dot(x, y, sparse=False):
     if sparse:
         res = tf.sparse_tensor_dense_matmul(x, y)
     else:
-        res = tf.matmul(x, y)
+        with tf.device("/device:XLA_CPU:*"):
+            res = tf.matmul(x, y)
     return res
 
 
@@ -167,7 +169,8 @@ class GraphConvolution(Layer):
         if self.sparse_inputs:
             x = sparse_dropout(x, 1-self.dropout, self.num_features_nonzero)
         else:
-            x = tf.nn.dropout(x, 1-self.dropout)
+            with tf.device("/device:XLA_CPU:*"):
+                x = tf.nn.dropout(x, 1-self.dropout)
 
         # convolve
         supports = list()
@@ -179,7 +182,8 @@ class GraphConvolution(Layer):
                 pre_sup = self.vars['weights_' + str(i)]
             support = dot(self.support[i], pre_sup, sparse=True)
             supports.append(support)
-        output = tf.add_n(supports)
+        with tf.device("/device:XLA_CPU:*"):
+            output = tf.add_n(supports)
 
         # bias
         if self.bias:
